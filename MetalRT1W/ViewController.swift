@@ -66,17 +66,25 @@ class ViewController: UIViewController {
     private func makeGeometries(_ rtParams: RayTracingParams) -> Geometry {
         let screenSize = rtParams.screenSize
         let root = GeometryGroup()
-        let s1 = Sphere(center: simd_float3(screenSize.x * 0.6,
-                                            screenSize.y * 0.6,
-                                            /*z-*/screenSize.y * 0.4 - 200),
-                        radius: screenSize.y * 0.1)
-        let s2 = Sphere(center: simd_float3(screenSize.x * 0.5,
+        let s1 = Sphere(center: simd_float3(screenSize.x * 0.5,
                                             0,
                                             screenSize.y * 0.4),
-                        radius: screenSize.y * 0.5)
-//        return s2
+                        radius: screenSize.y * 0.5,
+                        mat: Lambertian(albedo: simd_float3(0.5)))
+        let s2 = Sphere(center: simd_float3(screenSize.x * 0.6,
+                                            screenSize.y * 0.6,
+                                            /*z-*/screenSize.y * 0.2),
+                        radius: screenSize.y * 0.1,
+                        mat: Lambertian(albedo: simd_float3(0.8, 0.5, 0.4)))
+        let s3 = Sphere(center: simd_float3(screenSize.x * 0.35,
+                                            screenSize.y * 0.5,
+                                            /*z-*/screenSize.y * 0.1),
+                        radius: 50.0,
+                        mat: Lambertian(albedo: simd_float3(0.3, 0.2, 0.6)))
+//        return s1
         root.append(s1)
         root.append(s2)
+        root.append(s3)
         return root
     }
     

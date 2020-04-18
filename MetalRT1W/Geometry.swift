@@ -7,11 +7,10 @@
 //
 
 import Foundation
-import Metal
 import simd
 
 enum GeometryKinds: Int32 {
-    case group = 0
+    case group = 1
     case sphere
 }
 
@@ -56,22 +55,25 @@ class GeometryGroup: Geometry {
 class Sphere: Geometry {
     let center: simd_float3
     let radius: Float
+    let material: Material
     
-    init(center: simd_float3, radius: Float) {
+    init(center: simd_float3, radius: Float, mat: Material) {
         self.center = center
         self.radius = radius
+        self.material = mat
     }
 
     var kind: GeometryKinds { get { return .sphere } }
     
     var bytesOnMetal: Int32 {
         get {
-            var result = 0
-            result += GemoetryKindsSize
+            var result = GemoetryKindsSize
             // center
             result += MemoryLayout<simd_float3>.size
             // radius
             result += MemoryLayout<Float>.size
+            // material
+            result += MetalSerializableWriteStream.getBytesRequired(material)
             return Int32(result)
         }
     }
@@ -80,5 +82,6 @@ class Sphere: Geometry {
         strm.memCpy(data: kind.rawValue)
         strm.memCpy(data: center)
         strm.memCpy(data: radius)
+        strm.append(material)
     }
 }

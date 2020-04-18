@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		214F1151244A9AF400AC5B50 /* Material.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214F1150244A9AF400AC5B50 /* Material.swift */; };
 		21920C5D24460716006BABB0 /* Geometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5C24460716006BABB0 /* Geometry.swift */; };
 		21920C5F24461888006BABB0 /* MetalSerializable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5E24461888006BABB0 /* MetalSerializable.swift */; };
 		21E140B724455D28007DED2D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E140B624455D28007DED2D /* AppDelegate.swift */; };
@@ -20,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		214F1150244A9AF400AC5B50 /* Material.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Material.swift; sourceTree = "<group>"; };
 		21920C5C24460716006BABB0 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
 		21920C5E24461888006BABB0 /* MetalSerializable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalSerializable.swift; sourceTree = "<group>"; };
 		21E140B324455D28007DED2D /* MetalRT1W.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalRT1W.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -70,6 +72,7 @@
 				21E140C424455D29007DED2D /* Info.plist */,
 				21E140C124455D29007DED2D /* LaunchScreen.storyboard */,
 				21E140BC24455D28007DED2D /* Main.storyboard */,
+				214F1150244A9AF400AC5B50 /* Material.swift */,
 				21920C5E24461888006BABB0 /* MetalSerializable.swift */,
 				21E140CE2445ECA3007DED2D /* RayTracing.metal */,
 				21E140CA2445EBA6007DED2D /* RTScene.swift */,
@@ -150,6 +153,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				214F1151244A9AF400AC5B50 /* Material.swift in Sources */,
 				21E140CF2445ECA3007DED2D /* RayTracing.metal in Sources */,
 				21920C5D24460716006BABB0 /* Geometry.swift in Sources */,
 				21920C5F24461888006BABB0 /* MetalSerializable.swift in Sources */,
