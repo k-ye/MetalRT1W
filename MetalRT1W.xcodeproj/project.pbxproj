@@ -7,15 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		21920C5D24460716006BABB0 /* Geometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5C24460716006BABB0 /* Geometry.swift */; };
+		21920C5F24461888006BABB0 /* MetalSerializable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5E24461888006BABB0 /* MetalSerializable.swift */; };
 		21E140B724455D28007DED2D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E140B624455D28007DED2D /* AppDelegate.swift */; };
 		21E140B924455D28007DED2D /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E140B824455D28007DED2D /* SceneDelegate.swift */; };
 		21E140BB24455D28007DED2D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E140BA24455D28007DED2D /* ViewController.swift */; };
 		21E140BE24455D28007DED2D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21E140BC24455D28007DED2D /* Main.storyboard */; };
 		21E140C024455D29007DED2D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 21E140BF24455D29007DED2D /* Assets.xcassets */; };
 		21E140C324455D29007DED2D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21E140C124455D29007DED2D /* LaunchScreen.storyboard */; };
+		21E140CB2445EBA6007DED2D /* RTScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E140CA2445EBA6007DED2D /* RTScene.swift */; };
+		21E140CF2445ECA3007DED2D /* RayTracing.metal in Sources */ = {isa = PBXBuildFile; fileRef = 21E140CE2445ECA3007DED2D /* RayTracing.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		21920C5C24460716006BABB0 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
+		21920C5E24461888006BABB0 /* MetalSerializable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalSerializable.swift; sourceTree = "<group>"; };
 		21E140B324455D28007DED2D /* MetalRT1W.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalRT1W.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		21E140B624455D28007DED2D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		21E140B824455D28007DED2D /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -24,6 +30,8 @@
 		21E140BF24455D29007DED2D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		21E140C224455D29007DED2D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		21E140C424455D29007DED2D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		21E140CA2445EBA6007DED2D /* RTScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RTScene.swift; sourceTree = "<group>"; };
+		21E140CE2445ECA3007DED2D /* RayTracing.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = RayTracing.metal; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,12 +65,16 @@
 			isa = PBXGroup;
 			children = (
 				21E140B624455D28007DED2D /* AppDelegate.swift */,
+				21E140BF24455D29007DED2D /* Assets.xcassets */,
+				21920C5C24460716006BABB0 /* Geometry.swift */,
+				21E140C424455D29007DED2D /* Info.plist */,
+				21E140C124455D29007DED2D /* LaunchScreen.storyboard */,
+				21E140BC24455D28007DED2D /* Main.storyboard */,
+				21920C5E24461888006BABB0 /* MetalSerializable.swift */,
+				21E140CE2445ECA3007DED2D /* RayTracing.metal */,
+				21E140CA2445EBA6007DED2D /* RTScene.swift */,
 				21E140B824455D28007DED2D /* SceneDelegate.swift */,
 				21E140BA24455D28007DED2D /* ViewController.swift */,
-				21E140BC24455D28007DED2D /* Main.storyboard */,
-				21E140BF24455D29007DED2D /* Assets.xcassets */,
-				21E140C124455D29007DED2D /* LaunchScreen.storyboard */,
-				21E140C424455D29007DED2D /* Info.plist */,
 			);
 			path = MetalRT1W;
 			sourceTree = "<group>";
@@ -138,6 +150,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				21E140CF2445ECA3007DED2D /* RayTracing.metal in Sources */,
+				21920C5D24460716006BABB0 /* Geometry.swift in Sources */,
+				21920C5F24461888006BABB0 /* MetalSerializable.swift in Sources */,
+				21E140CB2445EBA6007DED2D /* RTScene.swift in Sources */,
 				21E140BB24455D28007DED2D /* ViewController.swift in Sources */,
 				21E140B724455D28007DED2D /* AppDelegate.swift in Sources */,
 				21E140B924455D28007DED2D /* SceneDelegate.swift in Sources */,
