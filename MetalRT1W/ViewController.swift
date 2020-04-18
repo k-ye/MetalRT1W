@@ -13,6 +13,21 @@ import simd
 fileprivate let kForwardVertKernel = "forward_vert"
 fileprivate let kRenderFragKernel = "render_frag"
 
+fileprivate func makeRayTracingParams(_ viewSize: CGSize) -> RayTracingParams {
+    var rtParams = RayTracingParams()
+    rtParams.screenSize.x = Float(viewSize.width)
+    rtParams.screenSize.y = Float(viewSize.height)
+    rtParams.cameraPos.x = rtParams.screenSize.x * 0.5
+    rtParams.cameraPos.y = rtParams.screenSize.y * 0.5
+    rtParams.cameraPos.z = -rtParams.screenSize.y * 1.2
+    rtParams.maxDepth = 50
+    rtParams.sampleBatchSize = 16
+    rtParams.curBatchIdx = 0
+    print("\(rtParams)")
+    return rtParams
+}
+
+
 class ViewController: UIViewController {
     var viewSize: SIMD2<Int> = .zero
     var device: MTLDevice!
@@ -26,7 +41,14 @@ class ViewController: UIViewController {
         // Do any additional setup after loading the view.
         device = MTLCreateSystemDefaultDevice()
         commandQueue = device.makeCommandQueue()
-        
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        // Recent iphone models can have |nativeScale| at 3.0, which will result
+        // in a too large texture.
+        // let scale = view.window?.screen.nativeScale ?? 2.0
+        let scale: CGFloat = 2.0
+        let viewSize = view.bounds.size
         metalLayer = CAMetalLayer()
         metalLayer.device = device
         // Have to use BGRA
@@ -36,31 +58,19 @@ class ViewController: UIViewController {
         // is blittable.
         metalLayer.framebufferOnly = false
         metalLayer.frame = view.layer.frame
+        metalLayer.drawableSize = CGSize(width: viewSize.width * scale,
+                                         height: viewSize.height * scale)
         view.layer.addSublayer(metalLayer)
 
-        let rtParams = makeRayTracingParams()
+        let rtParams = makeRayTracingParams(viewSize)
         var cfg = RTScene.Config()
         cfg.rtParams = rtParams
         cfg.rootGeometry = makeGeometries(rtParams)
-        cfg.maxRenderIter = 50
+        cfg.maxRenderIter = 20
         scene = RTScene(cfg, device)
         
         timer = CADisplayLink(target: self, selector: #selector(renderLoop))
         timer.add(to: .main, forMode: .default)
-    }
-    
-    private func makeRayTracingParams() -> RayTracingParams {
-        var rtParams = RayTracingParams()
-        rtParams.screenSize.x = Float(view.bounds.size.width)
-        rtParams.screenSize.y = Float(view.bounds.size.height)
-        rtParams.cameraPos.x = rtParams.screenSize.x * 0.5
-        rtParams.cameraPos.y = rtParams.screenSize.y * 0.5
-        rtParams.cameraPos.z = -rtParams.screenSize.y * 1.2
-        rtParams.maxDepth = 50
-        rtParams.sampleBatchSize = 32
-        rtParams.curBatchIdx = 0
-        print("\(rtParams)")
-        return rtParams
     }
     
     private func makeGeometries(_ rtParams: RayTracingParams) -> Geometry {
