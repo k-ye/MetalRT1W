@@ -100,7 +100,7 @@ public:
         // offset = count
         return ptr_ + sizeof(int32_t);
     }
-protected:
+private:
     ElemPtr ptr_;
 };
 
@@ -121,7 +121,7 @@ public:
         // offset = center + radius
         return (ptr_ + sizeof(float3) + sizeof(float));
     }
-protected:
+private:
     ElemPtr ptr_;
 };
 
@@ -154,6 +154,7 @@ struct HitRecord {
 enum class MaterialKinds {
     lambertian = 1,
     mmetal = 2,
+    dielectrics = 3,
 };
 
 inline MaterialKinds read_material_kind(ElemPtr elem) {
@@ -162,19 +163,91 @@ inline MaterialKinds read_material_kind(ElemPtr elem) {
 
 class Lambertian {
 public:
-    explicit Lambertian(ElemPtr p) {
-        p = skip_kind(p);
-        albedo = read<float3>(p);
+    explicit Lambertian(ElemPtr p) : ptr_(skip_kind(p)) {}
+    
+    inline float3 albedo() const {
+        return read<float3>(ptr_);
     }
     
     bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
-        *attenuation = albedo;
+        *attenuation = albedo();
         const float3 new_dir = rec.normal + random_in_unit_sphere(rand_state);
         *r_scattered = Ray(rec.point, new_dir);
         return true;
     }
 private:
-    float3 albedo;
+    ElemPtr ptr_;
+};
+
+class MMetal {
+public:
+    explicit MMetal(ElemPtr p) : ptr_(skip_kind(p)) {}
+    
+    inline float3 albedo() const {
+        return read<float3>(ptr_);
+    }
+    
+    inline float fuzz() const {
+        // offset = albedo
+        return read<float>(ptr_ + sizeof(float3));
+    }
+    
+    bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
+        const float3 reflected = reflect(r_in.direction(), rec.normal);
+        if (dot(reflected, rec.normal) <= 0) {
+            return false;
+        }
+        *attenuation = albedo();
+        *r_scattered = Ray(rec.point, reflected + fuzz() * random_in_unit_sphere(rand_state));
+        return true;
+    }
+private:
+    ElemPtr ptr_;
+};
+
+float schlick(float cosine, float ref_index) {
+    float r0 = (1.0 - ref_index) / (1.0 + ref_index);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
+}
+
+class Dielectrics {
+public:
+    explicit Dielectrics(ElemPtr p) : ptr_(skip_kind(p)) {}
+    
+    inline float ref_index() const {
+        return read<float>(ptr_);
+    }
+    
+    bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
+        const float rfi = ref_index();
+        float ni_over_nt = 0.0;
+        float3 outward_normal(0.0);
+        float cosine = dot(r_in.direction(), rec.normal);
+        if (cosine > 0) {
+            outward_normal = -rec.normal;
+            ni_over_nt = rfi;
+            cosine = rfi * cosine;
+        } else {
+            outward_normal = rec.normal;
+            ni_over_nt = 1.0 / rfi;
+            cosine = -cosine;
+        }
+        
+        const float3 refracted = refract(r_in.direction(), outward_normal, ni_over_nt);
+        const float reflect_prob = (length(refracted) > 0.5) ? schlick(cosine, rfi) : 1.0;
+        if (rand_f32(rand_state) < reflect_prob) {
+            *r_scattered = Ray(rec.point, reflect(r_in.direction(), rec.normal));
+        } else {
+            *r_scattered = Ray(rec.point, refracted);
+        }
+        
+        *attenuation = float3(1.0);
+        return true;
+    }
+
+private:
+    ElemPtr ptr_;
 };
 
 bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) {
@@ -185,6 +258,12 @@ bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, 
     if (kind == MaterialKinds::lambertian) {
         Lambertian l(elem);
         return l.scatter(r_in, rec, rand_state, attenuation, r_scattered);
+    } else if (kind == MaterialKinds::mmetal) {
+        MMetal m(elem);
+        return m.scatter(r_in, rec, rand_state, attenuation, r_scattered);
+    } else if (kind == MaterialKinds::dielectrics) {
+        Dielectrics d(elem);
+        return d.scatter(r_in, rec, rand_state, attenuation, r_scattered);
     }
     return false;
 }
@@ -333,6 +412,8 @@ vertex ForwardPosTexVertexOut forward_vert(device const float4* data [[buffer(0)
     result.tex_coord = d.zw;
     return result;
 }
+
+//z#define SAMPLE_ON_POLAR_SPACE
 
 fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
                                device RayTracingParams* params [[buffer(1)]],

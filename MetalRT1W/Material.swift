@@ -12,6 +12,7 @@ import simd
 enum MaterialKinds: Int32 {
     case lambertian = 1
     case mmetal
+    case dielectrics
 }
 
 fileprivate let MaterialKindsSize = MemoryLayout<Int32>.size
@@ -41,7 +42,7 @@ class Lambertian: Material {
     }
 }
 
-class MMetal: MetalSerializable {
+class MMetal: Material {
     let albedo: simd_float3
     let fuzz: Float
     
@@ -67,5 +68,29 @@ class MMetal: MetalSerializable {
         strm.memCpy(data: kind.rawValue)
         strm.memCpy(data: albedo)
         strm.memCpy(data: fuzz)
+    }
+}
+
+class Dielectrics: Material {
+    let refIndex: Float
+    
+    init(refIndex: Float) {
+        self.refIndex = refIndex
+    }
+    
+    var kind: MaterialKinds { get { return .dielectrics } }
+    
+    var bytesOnMetal: Int32 {
+        get {
+            var result = MaterialKindsSize
+            // refIndex
+            result += MemoryLayout<Float>.size
+            return Int32(result)
+        }
+    }
+    
+    func serialize(to strm: MetalSerializableWriteStream) {
+        strm.memCpy(data: kind.rawValue)
+        strm.memCpy(data: refIndex)
     }
 }
