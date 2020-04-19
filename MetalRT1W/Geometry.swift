@@ -12,10 +12,11 @@ import simd
 enum GeometryKinds: Int32 {
     case group = 1
     case sphere
+    case plane
 }
 
 // MemoryLayout<GeometryKinds>.size is 1, even if we specify it to derive from Int32.
-fileprivate let GemoetryKindsSize = MemoryLayout<Int32>.size
+fileprivate let GeometryKindsSize = MemoryLayout<Int32>.size
 
 protocol Geometry: MetalSerializable {
     var kind: GeometryKinds { get }
@@ -29,7 +30,7 @@ class GeometryGroup: Geometry {
     var bytesOnMetal: Int32 {
         get {
             var result = 0
-            result += GemoetryKindsSize
+            result += GeometryKindsSize
             // Elements count
             result += MemoryLayout<Int32>.size
             for g in group {
@@ -67,7 +68,7 @@ class Sphere: Geometry {
     
     var bytesOnMetal: Int32 {
         get {
-            var result = GemoetryKindsSize
+            var result = GeometryKindsSize
             // center
             result += MemoryLayout<simd_float3>.size
             // radius
@@ -82,6 +83,40 @@ class Sphere: Geometry {
         strm.memCpy(data: kind.rawValue)
         strm.memCpy(data: center)
         strm.memCpy(data: radius)
+        strm.append(material)
+    }
+}
+
+class Plane: Geometry {
+    let pointOnPlane: simd_float3
+    let normal: simd_float3
+    let material: Material
+    
+    init(pointOnPlane: simd_float3, normal: simd_float3, mat: Material) {
+        self.pointOnPlane = pointOnPlane
+        self.normal = normalize(normal)
+        self.material = mat
+    }
+    
+    var kind: GeometryKinds { get { return .plane } }
+    
+    var bytesOnMetal: Int32 {
+        get {
+            var result = GeometryKindsSize
+            // pointOnPlane
+            result += MemoryLayout<simd_float3>.size
+            // normal
+            result += MemoryLayout<simd_float3>.size
+            // material
+            result += MetalSerializableWriteStream.getBytesRequired(material)
+            return Int32(result)
+        }
+    }
+    
+    func serialize(to strm: MetalSerializableWriteStream) {
+        strm.memCpy(data: kind.rawValue)
+        strm.memCpy(data: pointOnPlane)
+        strm.memCpy(data: normal)
         strm.append(material)
     }
 }

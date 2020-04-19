@@ -82,6 +82,7 @@ float3 random_in_unit_sphere(thread RandState* rs) {
 enum class GeometryKinds {
     group = 1,
     sphere = 2,
+    plane = 3,
 };
 
 inline GeometryKinds read_geometry_kind(ElemPtr elem) {
@@ -120,6 +121,27 @@ public:
     inline ElemPtr material_ptr() const {
         // offset = center + radius
         return (ptr_ + sizeof(float3) + sizeof(float));
+    }
+private:
+    ElemPtr ptr_;
+};
+
+class Plane {
+public:
+    explicit Plane(ElemPtr p) : ptr_(skip_kind(p)) {}
+    
+    inline float3 point_on_plane() const {
+        return read<float3>(ptr_);
+    }
+    
+    inline float3 normal() const {
+        // offset = point_on_plane
+        return read<float3>(ptr_ + sizeof(float3));
+    }
+    
+    inline ElemPtr material_ptr() const {
+        // offset = point_on_plane + normal
+        return (ptr_ + sizeof(float3) + sizeof(float3));
     }
 private:
     ElemPtr ptr_;
@@ -318,10 +340,30 @@ bool hit(Sphere sphere, thread const Ray& r, float t_min, float t_max, thread Hi
     return true;
 }
 
+bool hit(Plane plane, thread const Ray& r, float t_min, float t_max, thread HitRecord* rec) {
+    const float3 pnorm = plane.normal();
+    const float denom = dot(r.direction(), pnorm);
+    if (abs(denom) < 5e-4) {
+        return false;
+    }
+    const float3 x0 = plane.point_on_plane();
+    const float t = dot((x0 - r.origin()), pnorm) / denom;
+    if (t < t_min || t >= t_max) {
+        return false;
+    }
+    rec->t = t;
+    rec->point = r.point_at(t);
+    rec->normal = pnorm;
+    rec->material_ptr = plane.material_ptr();
+    return true;
+}
+
 bool hit_base(ElemPtr elem, thread const Ray& r, float t_min, float t_max, thread HitRecord* rec) {
     const auto kind = read_geometry_kind(elem);
     if (kind == GeometryKinds::sphere) {
         return hit(Sphere(elem), r, t_min, t_max, rec);
+    } else if (kind == GeometryKinds::plane) {
+        return hit(Plane(elem), r, t_min, t_max, rec);
     }
     // assert false
     return false;

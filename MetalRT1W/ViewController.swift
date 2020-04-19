@@ -78,34 +78,31 @@ class ViewController: UIViewController {
     private func makeGeometries(_ rtParams: RayTracingParams) -> Geometry {
         let screenSize = rtParams.screenSize
         let root = GeometryGroup()
-        let s1 = Sphere(center: simd_float3(screenSize.x * 0.5,
-                                            -screenSize.y * 1.55,
-                                            screenSize.y * 0.4),
-                        radius: screenSize.y * 2,
-                        mat: Lambertian(albedo: simd_float3(0.4, 0.7, 0.3)))
+        let p1 = Plane(pointOnPlane: simd_float3(0, screenSize.y * 0.42, 0),
+                       normal: simd_float3(0.1, 1.0, 0.0),
+                       mat: Lambertian(albedo: simd_float3(0.4, 0.7, 0.3)))
         let s2 = Sphere(center: simd_float3(screenSize.x * 0.6,
-                                            screenSize.y * 0.6,
+                                            screenSize.y * 0.55,
                                             /*z-*/screenSize.y * 0.2),
-                        radius: screenSize.y * 0.1,
+                        radius: screenSize.y * 0.15,
                         mat: MMetal(albedo: simd_float3(0.8, 0.5, 0.4),
                                     fuzz: 0.0))
-        let s3 = Sphere(center: simd_float3(screenSize.x * 0.35,
+        let s3 = Sphere(center: simd_float3(screenSize.x * 0.32,
                                             screenSize.y * 0.5,
-                                            /*z-*/screenSize.y * 0.1),
+                                            0.0),
                         radius: 50.0,
                         mat: Lambertian(albedo: simd_float3(0.7, 0.14, 0.2)))
-        let s4 = Sphere(center: simd_float3(screenSize.x * 0.75,
-                                            screenSize.y * 0.51,
-                                            /*z-*/screenSize.y * 0.01),
-                        radius: 50.0,
-                        mat: Dielectrics(refractIndex: 2.4))
-        let s5 = Sphere(center: simd_float3(screenSize.x * 0.52,
-                            screenSize.y * 0.42,
-                            /*z-*/-screenSize.y * 0.15),
+        let s4 = Sphere(center: simd_float3(screenSize.x * 0.81,
+                                            screenSize.y * 0.46,
+                                            /*z-*/-screenSize.y * 0.04),
+                        radius: 42.0,
+                        mat: Dielectrics(refractIndex: 1.5))
+        let s5 = Sphere(center: simd_float3(screenSize.x * 0.45,
+                            screenSize.y * 0.45,
+                            /*z-*/-screenSize.y * 0.25),
                         radius: 30.0,
                         mat: Lambertian(albedo: simd_float3(0.2, 0.53, 0.9)))
-//        return s1
-        root.append(s1)
+        root.append(p1)
         root.append(s2)
         root.append(s3)
         root.append(s4)
