@@ -68,7 +68,7 @@ class ViewController: UIViewController {
         var cfg = RTScene.Config()
         cfg.rtParams = rtParams
         cfg.rootGeometry = makeGeometries(rtParams)
-        cfg.maxRenderIter = 50
+        cfg.maxRenderIter = 32
         scene = RTScene(cfg, device)
         
         timer = CADisplayLink(target: self, selector: #selector(renderLoop))
@@ -88,7 +88,7 @@ class ViewController: UIViewController {
                                             /*z-*/screenSize.y * 0.2),
                         radius: screenSize.y * 0.1,
                         mat: MMetal(albedo: simd_float3(0.8, 0.5, 0.4),
-                                    fuzz: 0.2))
+                                    fuzz: 0.0))
         let s3 = Sphere(center: simd_float3(screenSize.x * 0.35,
                                             screenSize.y * 0.5,
                                             /*z-*/screenSize.y * 0.1),
@@ -98,7 +98,7 @@ class ViewController: UIViewController {
                                             screenSize.y * 0.51,
                                             /*z-*/screenSize.y * 0.01),
                         radius: 50.0,
-                        mat: Dielectrics(refIndex: 1.333))
+                        mat: Dielectrics(refractIndex: 2.4))
         let s5 = Sphere(center: simd_float3(screenSize.x * 0.52,
                             screenSize.y * 0.42,
                             /*z-*/-screenSize.y * 0.15),

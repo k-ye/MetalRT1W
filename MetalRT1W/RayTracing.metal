@@ -211,8 +211,8 @@ private:
     ElemPtr ptr_;
 };
 
-float schlick(float cosine, float ref_index) {
-    float r0 = (1.0 - ref_index) / (1.0 + ref_index);
+float schlick(float cosine, float refract_index) {
+    float r0 = (1.0 - refract_index) / (1.0 + refract_index);
     r0 = r0 * r0;
     return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
 }
@@ -221,12 +221,17 @@ class Dielectrics {
 public:
     explicit Dielectrics(ElemPtr p) : ptr_(skip_kind(p)) {}
     
-    inline float ref_index() const {
+    inline float refract_index() const {
         return read<float>(ptr_);
     }
     
+    inline float fuzz() const {
+        // offset = refract_index
+        return read<float>(ptr_ + sizeof(float));
+    }
+    
     bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
-        const float rfi = ref_index();
+        const float rfi = refract_index();
         float ni_over_nt = 0.0;
         float3 outward_normal(0.0);
         float cosine = dot(r_in.direction(), rec.normal);
@@ -242,12 +247,13 @@ public:
         
         const float3 refracted = refract(r_in.direction(), outward_normal, ni_over_nt);
         const float reflect_prob = (length(refracted) > 0.5) ? schlick(cosine, rfi) : 1.0;
+        const float3 fuzzed_dir = fuzz() * random_in_unit_sphere(rand_state);
         if (rand_f32(rand_state) < reflect_prob) {
-            *r_scattered = Ray(get_scattered_ray_origin(rec.point, outward_normal), reflect(r_in.direction(), rec.normal));
+            *r_scattered = Ray(get_scattered_ray_origin(rec.point, outward_normal), reflect(r_in.direction(), rec.normal) + fuzzed_dir);
         } else {
             // negate |outward_normal| because for refraction, we need to move the point to the other
             // side of the boundary.
-            *r_scattered = Ray(get_scattered_ray_origin(rec.point, -outward_normal), refracted);
+            *r_scattered = Ray(get_scattered_ray_origin(rec.point, -outward_normal), refracted + fuzzed_dir);
         }
         
         *attenuation = float3(1.0);

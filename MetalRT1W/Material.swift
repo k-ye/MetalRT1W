@@ -72,11 +72,18 @@ class MMetal: Material {
 }
 
 class Dielectrics: Material {
-    let refIndex: Float
+    let refractIndex: Float
+    let fuzz: Float
     
-    init(refIndex: Float) {
-        self.refIndex = refIndex
+    init(refractIndex: Float, fuzz: Float) {
+        self.refractIndex = refractIndex
+        self.fuzz = fuzz
     }
+    
+    convenience init(refractIndex: Float) {
+        self.init(refractIndex: refractIndex, fuzz: 0.0)
+    }
+    
     
     var kind: MaterialKinds { get { return .dielectrics } }
     
@@ -85,12 +92,15 @@ class Dielectrics: Material {
             var result = MaterialKindsSize
             // refIndex
             result += MemoryLayout<Float>.size
+            // fuzz
+            result += MemoryLayout<Float>.size
             return Int32(result)
         }
     }
     
     func serialize(to strm: MetalSerializableWriteStream) {
         strm.memCpy(data: kind.rawValue)
-        strm.memCpy(data: refIndex)
+        strm.memCpy(data: refractIndex)
+        strm.memCpy(data: fuzz)
     }
 }
