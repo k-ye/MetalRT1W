@@ -161,6 +161,12 @@ inline MaterialKinds read_material_kind(ElemPtr elem) {
     return static_cast<MaterialKinds>(read<int32_t>(elem));
 }
 
+inline float3 get_scattered_ray_origin(float3 point, float3 normal) {
+    // Move |kEps| so that the scattered ray won't be self intersecting.
+    constexpr float kEps = 5e-4;
+    return point + normal * kEps;
+}
+
 class Lambertian {
 public:
     explicit Lambertian(ElemPtr p) : ptr_(skip_kind(p)) {}
@@ -172,7 +178,7 @@ public:
     bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
         *attenuation = albedo();
         const float3 new_dir = rec.normal + random_in_unit_sphere(rand_state);
-        *r_scattered = Ray(rec.point, new_dir);
+        *r_scattered = Ray(get_scattered_ray_origin(rec.point, rec.normal), new_dir);
         return true;
     }
 private:
@@ -198,7 +204,7 @@ public:
             return false;
         }
         *attenuation = albedo();
-        *r_scattered = Ray(rec.point, reflected + fuzz() * random_in_unit_sphere(rand_state));
+        *r_scattered = Ray(get_scattered_ray_origin(rec.point, rec.normal), reflected + fuzz() * random_in_unit_sphere(rand_state));
         return true;
     }
 private:
@@ -237,15 +243,17 @@ public:
         const float3 refracted = refract(r_in.direction(), outward_normal, ni_over_nt);
         const float reflect_prob = (length(refracted) > 0.5) ? schlick(cosine, rfi) : 1.0;
         if (rand_f32(rand_state) < reflect_prob) {
-            *r_scattered = Ray(rec.point, reflect(r_in.direction(), rec.normal));
+            *r_scattered = Ray(get_scattered_ray_origin(rec.point, outward_normal), reflect(r_in.direction(), rec.normal));
         } else {
-            *r_scattered = Ray(rec.point, refracted);
+            // negate |outward_normal| because for refraction, we need to move the point to the other
+            // side of the boundary.
+            *r_scattered = Ray(get_scattered_ray_origin(rec.point, -outward_normal), refracted);
         }
         
         *attenuation = float3(1.0);
         return true;
     }
-
+    
 private:
     ElemPtr ptr_;
 };
