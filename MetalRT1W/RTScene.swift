@@ -52,9 +52,6 @@ fileprivate func makeRenderPipelineState(_ device: MTLDevice) -> MTLRenderPipeli
 }
 
 struct RayTracingParams {
-    var cameraPos: simd_float3 = .zero
-    var aperture: Float = .zero
-    var focusDist: Float = .zero
     var screenSize: simd_float2 = .zero
     var sampleBatchSize: Int32 = .zero
     var curBatchIdx: Int32 = .zero
@@ -64,18 +61,21 @@ struct RayTracingParams {
 class RTScene {
     struct Config {
         var rtParams: RayTracingParams!
+        var cameraPaarms: CameraParams!
         var rootGeometry: Geometry!
         var maxRenderIter: Int = .zero
     }
     
     private weak var device: MTLDevice!
     private let cfg: Config
+    private var lowQuality: Bool
     
     private let geometryBuffer: MTLBuffer
     private var rtParams: RayTracingParams {
         get { return cfg.rtParams }
     }
     private let rtParamsBuffer: MTLBuffer
+    private let cameraParamsBuffer: MTLBuffer
     private let randSeedBuffer: MTLBuffer
     
     private let renderQuadVertexBuffer: MTLBuffer
@@ -85,6 +85,7 @@ class RTScene {
     init(_ cfg: Config, _ device: MTLDevice) {
         self.device = device
         self.cfg = cfg
+        self.lowQuality = false
         
         geometryBuffer = device.makeBuffer(
             length: MetalSerializableWriteStream.getBytesRequired(cfg.rootGeometry),
@@ -94,6 +95,9 @@ class RTScene {
         
         var rtParamsCopy = cfg.rtParams!
         rtParamsBuffer = device.makeBuffer(bytes: &rtParamsCopy, length: MemoryLayout<RayTracingParams>.stride, options: [])!
+        
+        var camParamsCopy = cfg.cameraPaarms!
+        cameraParamsBuffer = device.makeBuffer(bytes: &camParamsCopy, length: MemoryLayout<CameraParams>.stride, options: [])!
         randSeedBuffer = device.makeBuffer(length: MemoryLayout<UInt32>.stride, options: [])!
         // Metal NDC XY: [-1.0, 1.0], Z: [0.0, 1.0]
         renderQuadVertexBuffer = makeQuadVertexBuffers(lo: -1.0, hi: 1.0, device)
@@ -109,13 +113,23 @@ class RTScene {
         return incIterOrTerminate()
     }
     
-    private func incIterOrTerminate() -> Bool {
-        let ptr = rtParamsBuffer.contents().bindMemory(to: RayTracingParams.self, capacity: 1)
-        if ptr.pointee.curBatchIdx >= cfg.maxRenderIter {
-            return false
-        }
-        ptr.pointee.curBatchIdx += 1
-        return true
+    func update(cameraParams: CameraParams) {
+        lowQuality = true
+        let cpPtr = cameraParamsBuffer.contents().bindMemory(to: CameraParams.self, capacity: 1)
+        cpPtr.initialize(to: cameraParams)
+        
+        let rtPtr = toRtParamsPtr()
+        rtPtr.pointee.sampleBatchSize = 2
+        rtPtr.pointee.curBatchIdx = 0
+        rtPtr.pointee.maxDepth = 3
+    }
+    
+    func finishCameraUpdate() {
+        lowQuality = false
+        let ptr = toRtParamsPtr()
+        ptr.pointee.sampleBatchSize = cfg.rtParams.sampleBatchSize
+        ptr.pointee.curBatchIdx = 0
+        ptr.pointee.maxDepth = cfg.rtParams.sampleBatchSize
     }
     
     private func mayeInitColorTexture(_ fbTex: MTLTexture) {
@@ -150,7 +164,8 @@ class RTScene {
         commandEncoder.setVertexBuffer(renderQuadVertexBuffer, offset: 0, index: 0)
         commandEncoder.setFragmentBuffer(geometryBuffer, offset: 0, index: 0)
         commandEncoder.setFragmentBuffer(rtParamsBuffer, offset: 0, index: 1)
-        commandEncoder.setFragmentBuffer(randSeedBuffer, offset: 0, index: 2)
+        commandEncoder.setFragmentBuffer(cameraParamsBuffer, offset: 0, index: 2)
+        commandEncoder.setFragmentBuffer(randSeedBuffer, offset: 0, index: 3)
         commandEncoder.setFragmentTexture(colorTexture, index: 0)
         commandEncoder.setTriangleFillMode(.fill)
         // A quad contains two triangle, therefore a total of 6 vertices
@@ -162,5 +177,21 @@ class RTScene {
         let commandEncoder = commandBuffer.makeBlitCommandEncoder()!
         commandEncoder.copy(from: fbTex, to: colorTexture!)
         commandEncoder.endEncoding()
+    }
+    
+    private func incIterOrTerminate() -> Bool {
+        if lowQuality {
+            return false
+        }
+        let ptr = toRtParamsPtr()
+        if ptr.pointee.curBatchIdx >= cfg.maxRenderIter {
+            return false
+        }
+        ptr.pointee.curBatchIdx += 1
+        return true
+    }
+    
+    private func toRtParamsPtr() -> UnsafeMutablePointer<RayTracingParams> {
+        return rtParamsBuffer.contents().bindMemory(to: RayTracingParams.self, capacity: 1)
     }
 }

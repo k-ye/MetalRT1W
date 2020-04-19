@@ -445,38 +445,45 @@ bool hit(ElemPtr elem, thread const Ray& r, float t_min, float t_max, thread Hit
     return false;
 }
 
-struct RayTracingParams {
-    float3 camera_pos;
+/// Camera
+
+struct CameraParams {
+    float3 position;
+    float3 focal_plane_origin;
+    float3 u;
+    float3 v;
     float aperture;
-    float focus_dist;
+};
+
+class Camera {
+public:
+    explicit Camera(device const CameraParams* params) :
+    camera_pos_(params->position),
+    focal_plane_origin_(params->focal_plane_origin),
+    u_(params->u),
+    v_(params->v),
+    lens_radius_(params->aperture * 0.5) {}
+    
+    Ray get_ray(float x, float y, thread RandState* rand_state) const {
+        const float3 o = camera_pos_ + lens_radius_ * random_in_unit_disk(rand_state);
+        const float3 target = focal_plane_origin_ + x * u_ + y * v_;
+        return Ray(o, target - o);
+    }
+private:
+    float3 camera_pos_;
+    float3 focal_plane_origin_;
+    float3 u_;
+    float3 v_;
+    float lens_radius_;
+};
+
+/// Ray tracing
+
+struct RayTracingParams {
     float2 screen_size;
     int32_t sample_batch_size;
     int32_t cur_batch_idx;
     int32_t max_depth;
-};
-
-class VanillaCamera {
-public:
-    VanillaCamera(device const RayTracingParams* params) :
-    width_(params->screen_size.x),
-    height_(params->screen_size.y),
-    origin_(params->camera_pos),
-    lens_radius_(params->aperture * 0.5),
-    focus_dist_(params->focus_dist) {}
-    
-    Ray get_ray(float x, float y, thread RandState* rand_state) const {
-        const float3 o = origin_ + lens_radius_ * random_in_unit_disk(rand_state);
-        const float3 target(x * width_ + rand_f32(rand_state),
-                            y * height_ + rand_f32(rand_state),
-                            origin_.z + focus_dist_);
-        return Ray(o, target - o);
-    }
-private:
-    float width_;
-    float height_;
-    float3 origin_;
-    float lens_radius_;
-    float focus_dist_;
 };
 
 constant constexpr float kTMax = 1e6;
@@ -504,7 +511,7 @@ float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth, thread RandState* ran
                 break;
             }
         } else {
-            color *= float3(0.4, 0.34, 0.72);
+            color *= float3(0.4, 0.34, 0.62);
             break;
         }
     }
@@ -528,8 +535,9 @@ vertex ForwardPosTexVertexOut forward_vert(device const float4* data [[buffer(0)
 //#define ORTHOGONAL_PROJECTION
 
 fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
-                               device RayTracingParams* params [[buffer(1)]],
-                               device const uint32_t* rand_seed [[buffer(2)]],
+                               device RayTracingParams* rt_params [[buffer(1)]],
+                               device CameraParams* cam_params [[buffer(2)]],
+                               device const uint32_t* rand_seed [[buffer(3)]],
                                texture2d<float> color_tex [[texture(0)]],
                                ForwardPosTexVertexOut frag_data [[ stage_in ]]) {
     const float2 tex_coord = frag_data.tex_coord;
@@ -537,8 +545,8 @@ fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
     const float ty = 1.0 - tex_coord.y;
     RandState rand_state(*rand_seed, tx, ty);
     
-    VanillaCamera camera(params);
-    const auto sample_batch_size = params->sample_batch_size;
+    Camera camera(cam_params);
+    const auto sample_batch_size = rt_params->sample_batch_size;
     float3 color(0.0);
     for (int i = 0; i < sample_batch_size; ++i) {
 #ifdef ORTHOGONAL_PROJECTION
@@ -550,20 +558,20 @@ fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
 #else
         Ray r = camera.get_ray(tx, ty, &rand_state);
 #endif
-        color += ray_trace(r, geometry, params->max_depth, &rand_state);
+        color += ray_trace(r, geometry, rt_params->max_depth, &rand_state);
     }
     color = sqrt(color / sample_batch_size);
     
-    const int cur_iter = params->cur_batch_idx;
+    const int cur_iter = rt_params->cur_batch_idx;
     constexpr sampler s(mag_filter::linear, min_filter::linear, address::clamp_to_zero);
     const float3 prev_color = color_tex.sample(s, tex_coord).xyz;
     const float4 result((prev_color * cur_iter + color) / (cur_iter + 1.0), 1.0);
     return result;
 }
 
-///
+
 /// Functions and kernels below are mostly for debugging
-///
+
 float3 sphere_normal(Ray r, ElemPtr elem) {
     int32_t bytes_unused;
     elem = read_elem_bytes_and_skip(elem, &bytes_unused);

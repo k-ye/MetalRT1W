@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2117D228244C1FD400024B27 /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2117D227244C1FD400024B27 /* Camera.swift */; };
+		2117D22C244C3BB700024B27 /* MathExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2117D22B244C3BB700024B27 /* MathExtension.swift */; };
 		214F1151244A9AF400AC5B50 /* Material.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214F1150244A9AF400AC5B50 /* Material.swift */; };
 		21920C5D24460716006BABB0 /* Geometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5C24460716006BABB0 /* Geometry.swift */; };
 		21920C5F24461888006BABB0 /* MetalSerializable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21920C5E24461888006BABB0 /* MetalSerializable.swift */; };
@@ -21,6 +23,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		2117D227244C1FD400024B27 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera.swift; sourceTree = "<group>"; };
+		2117D22B244C3BB700024B27 /* MathExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathExtension.swift; sourceTree = "<group>"; };
 		214F1150244A9AF400AC5B50 /* Material.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Material.swift; sourceTree = "<group>"; };
 		21920C5C24460716006BABB0 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
 		21920C5E24461888006BABB0 /* MetalSerializable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalSerializable.swift; sourceTree = "<group>"; };
@@ -68,6 +72,7 @@
 			children = (
 				21E140B624455D28007DED2D /* AppDelegate.swift */,
 				21E140BF24455D29007DED2D /* Assets.xcassets */,
+				2117D227244C1FD400024B27 /* Camera.swift */,
 				21920C5C24460716006BABB0 /* Geometry.swift */,
 				21E140C424455D29007DED2D /* Info.plist */,
 				21E140C124455D29007DED2D /* LaunchScreen.storyboard */,
@@ -78,6 +83,7 @@
 				21E140CA2445EBA6007DED2D /* RTScene.swift */,
 				21E140B824455D28007DED2D /* SceneDelegate.swift */,
 				21E140BA24455D28007DED2D /* ViewController.swift */,
+				2117D22B244C3BB700024B27 /* MathExtension.swift */,
 			);
 			path = MetalRT1W;
 			sourceTree = "<group>";
@@ -160,7 +166,9 @@
 				21E140CB2445EBA6007DED2D /* RTScene.swift in Sources */,
 				21E140BB24455D28007DED2D /* ViewController.swift in Sources */,
 				21E140B724455D28007DED2D /* AppDelegate.swift in Sources */,
+				2117D22C244C3BB700024B27 /* MathExtension.swift in Sources */,
 				21E140B924455D28007DED2D /* SceneDelegate.swift in Sources */,
+				2117D228244C1FD400024B27 /* Camera.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
