@@ -62,17 +62,19 @@ RandState::RandState(uint32_t s, float x, float y) : seed(s) {
     rand_u32(this);
 }
 
-void init_rand_seed(thread RandState* rs, float x, float y) {
-    rs->seed *= *(thread uint32_t*)(&x);
-    rand_u32(rs);
-    rs->seed *= *(thread uint32_t*)(&y);
-    rand_u32(rs);
-}
-
 float3 random_in_unit_sphere(thread RandState* rs) {
     float3 p(0.0);
     do {
         p = 2.0 * float3(rand_f32(rs), rand_f32(rs), rand_f32(rs)) - float3(1.0);
+    } while (dot(p, p) >= 1.0);
+    return p;
+}
+
+
+float3 random_in_unit_disk(thread RandState* rand_state) {
+    float3 p(0.0);
+    do {
+        p = 2.0 * float3(rand_f32(rand_state), rand_f32(rand_state), 0.0) - float3(1.0, 1.0, 0.0);
     } while (dot(p, p) >= 1.0);
     return p;
 }
@@ -177,6 +179,7 @@ enum class MaterialKinds {
     lambertian = 1,
     mmetal = 2,
     dielectrics = 3,
+    light_source = 4,
 };
 
 inline MaterialKinds read_material_kind(ElemPtr elem) {
@@ -286,6 +289,17 @@ private:
     ElemPtr ptr_;
 };
 
+class LightSource {
+public:
+    explicit LightSource(ElemPtr p) : ptr_(skip_kind(p)) {}
+    
+    inline float3 color() const {
+        return read<float3>(ptr_);
+    }
+private:
+    ElemPtr ptr_;
+};
+
 bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) {
     int32_t bytes_unused;
     elem = read_elem_bytes_and_skip(elem, &bytes_unused);
@@ -300,6 +314,20 @@ bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, 
     } else if (kind == MaterialKinds::dielectrics) {
         Dielectrics d(elem);
         return d.scatter(r_in, rec, rand_state, attenuation, r_scattered);
+    }
+    return false;
+}
+
+bool emitted(ElemPtr elem, thread float3* color) {
+    // TODO: support u, v in HitRecord
+    int32_t bytes_unused;
+    elem = read_elem_bytes_and_skip(elem, &bytes_unused);
+    
+    const auto kind = read_material_kind(elem);
+    if (kind == MaterialKinds::light_source) {
+        LightSource l(elem);
+        *color = l.color();
+        return true;
     }
     return false;
 }
@@ -427,14 +455,6 @@ struct RayTracingParams {
     int32_t max_depth;
 };
 
-float3 random_in_unit_disk(thread RandState* rand_state) {
-    float3 p(0.0);
-    do {
-        p = 2.0 * float3(rand_f32(rand_state), rand_f32(rand_state), 0.0) - float3(1.0, 1.0, 0.0);
-    } while (dot(p, p) >= 1.0);
-    return p;
-}
-
 class VanillaCamera {
 public:
     VanillaCamera(device const RayTracingParams* params) :
@@ -473,16 +493,18 @@ float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth, thread RandState* ran
             float3 attenuation;
             Ray ray_new;
             const bool scattered = scatter(rec.material_ptr, ray, rec, rand_state, &attenuation, &ray_new);
-            if (!((depth < max_depth) && scattered)) {
-                return float3(0.0);
+            if ((depth < max_depth) && scattered) {
+                ++depth;
+                color *= attenuation;
+                ray = ray_new;
+            } else {
+                float3 emission(0.0);
+                emitted(rec.material_ptr, &emission);
+                color *= emission;
+                break;
             }
-            ++depth;
-            color *= attenuation;
-            ray = ray_new;
         } else {
-            const float t = 0.5 * (ray.direction().y + 1.0);
-            // gradient blue
-            color *= ((1.0 - t) * float3(1.0) + t * float3(0.5, 0.7, 1.0));
+            color *= float3(0.4, 0.34, 0.72);
             break;
         }
     }

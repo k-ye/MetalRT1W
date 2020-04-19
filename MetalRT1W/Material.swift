@@ -13,6 +13,7 @@ enum MaterialKinds: Int32 {
     case lambertian = 1
     case mmetal
     case dielectrics
+    case lightSource
 }
 
 fileprivate let MaterialKindsSize = MemoryLayout<Int32>.size
@@ -102,5 +103,29 @@ class Dielectrics: Material {
         strm.memCpy(data: kind.rawValue)
         strm.memCpy(data: refractIndex)
         strm.memCpy(data: fuzz)
+    }
+}
+
+class LightSource: Material {
+    let color: simd_float3
+    
+    init(color: simd_float3) {
+        self.color = color
+    }
+    
+    var kind: MaterialKinds { get { return .lightSource } }
+    
+    var bytesOnMetal: Int32 {
+        get {
+            var result = MaterialKindsSize
+            // color
+            result += MemoryLayout<simd_float3>.size
+            return Int32(result)
+        }
+    }
+    
+    func serialize(to strm: MetalSerializableWriteStream) {
+        strm.memCpy(data: kind.rawValue)
+        strm.memCpy(data: color)
     }
 }

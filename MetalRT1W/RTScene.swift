@@ -87,7 +87,7 @@ class RTScene {
         self.cfg = cfg
         
         geometryBuffer = device.makeBuffer(
-            length: MetalSerializableWriteStream.getBytesRequired(cfg.rootGeometry) ,
+            length: MetalSerializableWriteStream.getBytesRequired(cfg.rootGeometry),
             options: [])!
         let mswriter = MetalSerializableWriteStream(geometryBuffer)
         mswriter.append(cfg.rootGeometry)

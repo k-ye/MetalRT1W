@@ -23,7 +23,7 @@ fileprivate func makeRayTracingParams(_ viewSize: CGSize) -> RayTracingParams {
     rtParams.aperture = 12.0
     rtParams.focusDist = abs(rtParams.cameraPos.z)
     rtParams.maxDepth = 50
-    rtParams.sampleBatchSize = 16
+    rtParams.sampleBatchSize = 8
     rtParams.curBatchIdx = 0
     print("\(rtParams)")
     return rtParams
@@ -68,7 +68,7 @@ class ViewController: UIViewController {
         var cfg = RTScene.Config()
         cfg.rtParams = rtParams
         cfg.rootGeometry = makeGeometries(rtParams)
-        cfg.maxRenderIter = 32
+        cfg.maxRenderIter = 128
         scene = RTScene(cfg, device)
         
         timer = CADisplayLink(target: self, selector: #selector(renderLoop))
@@ -102,15 +102,22 @@ class ViewController: UIViewController {
                             /*z-*/-screenSize.y * 0.25),
                         radius: 30.0,
                         mat: Lambertian(albedo: simd_float3(0.2, 0.53, 0.9)))
+        let s6 = Sphere(center: simd_float3(screenSize.x * 0.8,
+                                            screenSize.y * 0.6,
+                                            -screenSize.y * 0.3),
+                        radius: 30.0,
+                        mat: LightSource(color: simd_float3(0.9, 0.5, 0.3) * 3.0))
         root.append(p1)
         root.append(s2)
         root.append(s3)
         root.append(s4)
         root.append(s5)
+        root.append(s6)
         return root
     }
     
     private var neesSample = true
+
     @objc func renderLoop() {
         autoreleasepool {
             guard neesSample else { return }
