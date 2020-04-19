@@ -53,6 +53,8 @@ fileprivate func makeRenderPipelineState(_ device: MTLDevice) -> MTLRenderPipeli
 
 struct RayTracingParams {
     var cameraPos: simd_float3 = .zero
+    var aperture: Float = .zero
+    var focusDist: Float = .zero
     var screenSize: simd_float2 = .zero
     var sampleBatchSize: Int32 = .zero
     var curBatchIdx: Int32 = .zero

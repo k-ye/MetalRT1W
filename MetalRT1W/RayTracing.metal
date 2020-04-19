@@ -70,11 +70,11 @@ void init_rand_seed(thread RandState* rs, float x, float y) {
 }
 
 float3 random_in_unit_sphere(thread RandState* rs) {
-    float3 result(0.0);
+    float3 p(0.0);
     do {
-        result = 2.0 * float3(rand_f32(rs), rand_f32(rs), rand_f32(rs)) - float3(1.0);
-    } while (length(result) > 1.0);
-    return result;
+        p = 2.0 * float3(rand_f32(rs), rand_f32(rs), rand_f32(rs)) - float3(1.0);
+    } while (dot(p, p) >= 1.0);
+    return p;
 }
 
 /// Geometry
@@ -363,10 +363,44 @@ bool hit(ElemPtr elem, thread const Ray& r, float t_min, float t_max, thread Hit
 
 struct RayTracingParams {
     float3 camera_pos;
+    float aperture;
+    float focus_dist;
     float2 screen_size;
     int32_t sample_batch_size;
     int32_t cur_batch_idx;
     int32_t max_depth;
+};
+
+float3 random_in_unit_disk(thread RandState* rand_state) {
+    float3 p(0.0);
+    do {
+        p = 2.0 * float3(rand_f32(rand_state), rand_f32(rand_state), 0.0) - float3(1.0, 1.0, 0.0);
+    } while (dot(p, p) >= 1.0);
+    return p;
+}
+
+class VanillaCamera {
+public:
+    VanillaCamera(device const RayTracingParams* params) :
+    width_(params->screen_size.x),
+    height_(params->screen_size.y),
+    origin_(params->camera_pos),
+    lens_radius_(params->aperture * 0.5),
+    focus_dist_(params->focus_dist) {}
+    
+    Ray get_ray(float x, float y, thread RandState* rand_state) const {
+        const float3 o = origin_ + lens_radius_ * random_in_unit_disk(rand_state);
+        const float3 target(x * width_ + rand_f32(rand_state),
+                            y * height_ + rand_f32(rand_state),
+                            origin_.z + focus_dist_);
+        return Ray(o, target - o);
+    }
+private:
+    float width_;
+    float height_;
+    float3 origin_;
+    float lens_radius_;
+    float focus_dist_;
 };
 
 constant constexpr float kTMax = 1e6;
@@ -413,7 +447,7 @@ vertex ForwardPosTexVertexOut forward_vert(device const float4* data [[buffer(0)
     return result;
 }
 
-//z#define SAMPLE_ON_POLAR_SPACE
+//#define ORTHOGONAL_PROJECTION
 
 fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
                                device RayTracingParams* params [[buffer(1)]],
@@ -425,26 +459,18 @@ fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
     const float ty = 1.0 - tex_coord.y;
     RandState rand_state(*rand_seed, tx, ty);
     
-    const float2 screen_size = params->screen_size;
-    const auto camera_pos = params->camera_pos;
+    VanillaCamera camera(params);
     const auto sample_batch_size = params->sample_batch_size;
     float3 color(0.0);
     for (int i = 0; i < sample_batch_size; ++i) {
-#ifdef SAMPLE_ON_POLAR_SPACE
-        const float rad = ((rand_f32(&rand_state) + i) / sample_batch_size) * M_2_PI_F;
-        const float3 target_pos(tx * screen_size.x + cos(rad),
-                                ty * screen_size.y + sin(rad),
-                                0.0);
-#else
+#ifdef ORTHOGONAL_PROJECTION
+        const float2 screen_size = params->screen_size;
         const float3 target_pos(tx * screen_size.x + rand_f32(&rand_state),
                                 ty * screen_size.y + rand_f32(&rand_state),
                                 0.0);
-#endif
-        
-#ifdef ORTHOGONAL_PROJECTION
         Ray r(target_pos, float3(0.0, 0.0, 1.0));
 #else
-        Ray r(camera_pos, target_pos - camera_pos);
+        Ray r = camera.get_ray(tx, ty, &rand_state);
 #endif
         color += ray_trace(r, geometry, params->max_depth, &rand_state);
     }
