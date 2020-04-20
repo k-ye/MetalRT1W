@@ -9,4 +9,4 @@ It's done as an iOS app + Metal.
 
 ## Demo
 
-![](demo/earth.jpg)
+<img src="demo/earth.jpg" width="400">
