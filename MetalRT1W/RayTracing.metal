@@ -188,7 +188,7 @@ inline MaterialKinds read_material_kind(ElemPtr elem) {
 
 inline float3 get_scattered_ray_origin(float3 point, float3 normal) {
     // Move |kEps| so that the scattered ray won't be self intersecting.
-    constexpr float kEps = 5e-4;
+    constexpr float kEps = 2e-3;
     return point + normal * kEps;
 }
 
@@ -511,7 +511,7 @@ float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth, thread RandState* ran
                 break;
             }
         } else {
-            color *= float3(0.4, 0.34, 0.62);
+            color *= float3(0.2, 0.34, 0.72);
             break;
         }
     }

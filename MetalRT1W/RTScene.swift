@@ -70,7 +70,7 @@ class RTScene {
     private let cfg: Config
     private var lowQuality: Bool
     
-    private let geometryBuffer: MTLBuffer
+    private var geometryBuffer: MTLBuffer
     private var rtParams: RayTracingParams {
         get { return cfg.rtParams }
     }
@@ -119,9 +119,17 @@ class RTScene {
         cpPtr.initialize(to: cameraParams)
         
         let rtPtr = toRtParamsPtr()
-        rtPtr.pointee.sampleBatchSize = 2
+        rtPtr.pointee.sampleBatchSize = 1
         rtPtr.pointee.curBatchIdx = 0
-        rtPtr.pointee.maxDepth = 3
+        rtPtr.pointee.maxDepth = 2
+    }
+    
+    func update(gemoetry: Geometry) {
+        geometryBuffer = device.makeBuffer(
+            length: MetalSerializableWriteStream.getBytesRequired(gemoetry),
+            options: [])!
+        let mswriter = MetalSerializableWriteStream(geometryBuffer)
+        mswriter.append(gemoetry)
     }
     
     func finishCameraUpdate() {

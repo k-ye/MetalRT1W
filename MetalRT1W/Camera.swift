@@ -57,14 +57,14 @@ class Camera {
         curFocalDist = cfg.initFocalDistance
         curAperture = cfg.initAperture
         
-        xRotRad = 0.12
+        xRotRad = 0.07
         yRotRad = .zero
     }
     
     func onPan(delta: CGPoint) {
         yRotRad += computeDeltaRad(dt: -delta.x)
         let tmpXRotRad = xRotRad + computeDeltaRad(dt: -delta.y)
-        xRotRad = max(0, min(Float.pi, tmpXRotRad))
+        xRotRad = max(0.01, min(Float.pi * 0.5, tmpXRotRad))
     }
     
     func getParams() -> CameraParams {
