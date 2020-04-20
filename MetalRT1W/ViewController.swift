@@ -94,42 +94,44 @@ class ViewController: UIViewController {
     private func makeGeometries() -> Geometry {
         let screenSize = rtParams.screenSize
         let root = GeometryGroup()
-        let p1 = Plane(pointOnPlane: simd_float3(0, screenSize.y * -0.1, 0),
+        let p1 = Plane(pointOnPlane: simd_float3(0, screenSize.y * -0.123, 0),
                        normal: simd_float3(-0.08, 1.0, 0.0),
                        mat: Lambertian(albedo: simd_float3(0.4, 0.7, 0.35)))
-        let s2 = Sphere(center: simd_float3(screenSize.x * -0.25,
-                                            screenSize.y * 0.0,
-                                            screenSize.y * -0.25),
-                        radius: screenSize.y * 0.09,
-                        mat: MMetal(albedo: simd_float3(0.8, 0.5, 0.4),
-                                    fuzz: 0.03))
-        let s3 = Sphere(center: simd_float3(screenSize.x * 0.0,
-                                            screenSize.y * 0.0,
-                                            screenSize.y * 0.0),
-                        radius: screenSize.y * 0.09,
-                        mat: Dielectrics(refractIndex: 1.5))
-        let s4 = Sphere(center: simd_float3(screenSize.x * 0.25,
-                                            screenSize.y * 0.005,
-                                            screenSize.y * 0.25),
-                        radius: screenSize.y * 0.09,
-                        mat: Lambertian(albedo: simd_float3(0.7, 0.14, 0.2)))
-        let ls1 = Sphere(center: simd_float3(screenSize.x * -0.32,
+        let s2 = Sphere(center: simd_float3(screenSize.x * 0.08,
+                                            screenSize.y * 0.1,
+                                            screenSize.y * -0.05),
+                        radius: screenSize.y * 0.13,
+                        mat: Lambertian(albedo: simd_float3(0.8, 0.5, 0.4),
+                                        texIndex: 0))
+        let s3 = Sphere(center: simd_float3(screenSize.x * 0.08,
+                                            screenSize.y * 0.1,
+                                            screenSize.y * -0.05),
+                        radius: screenSize.y * 0.145,
+                        mat: Dielectrics(refractIndex: 2.0))
+        let s4 = Sphere(center: simd_float3(screenSize.x * -0.26,
+                                            screenSize.y * 0.03,
+                                            screenSize.y * -0.35),
+                        radius: 32.0,
+                        mat: LightSource(
+                        color: simd_float3(0.84, 0.84, 0.84) * 2.0, texIndex: 1))
+        let ls1 = Sphere(center: simd_float3(screenSize.x * -0.25,
                                             screenSize.y * 0.12,
-                                            screenSize.y * 0.3),
-                        radius: 40.0,
-                        mat: LightSource(color: simd_float3(0.9, 0.52, 0.3) * 3.5))
-        let ls2 = Sphere(center: simd_float3(screenSize.x * 0.41,
-                                             screenSize.y * 0.045,
-                                             screenSize.y * -0.35),
-                         radius: 28.0,
-                         mat: LightSource(color: simd_float3(0.74, 0.37, 0.21) * 1.5))
+                                            screenSize.y * 2.5),
+                        radius: 100.0,
+                        mat: LightSource(color: simd_float3(0.9, 0.52, 0.3) * 4.5))
+//        let ls2 = Sphere(center: simd_float3(screenSize.x * 0.41,
+//                                             screenSize.y * 0.085,
+//                                             screenSize.y * -0.35),
+//                         radius: 28.0,
+//                         mat: LightSource(
+//                            color: simd_float3(0.74, 0.37, 0.21) * 2.0))
         root.append(p1)
         root.append(s2)
         root.append(s3)
         root.append(s4)
         root.append(ls1)
-        root.append(ls2)
-        
+//        root.append(ls2)
+        /*
         var minX = 0.12 * screenSize.x
         var maxX = 0.7 * screenSize.x
         var rangeX = maxX - minX
@@ -196,6 +198,7 @@ class ViewController: UIViewController {
                 root.append(s)
             }
         }
+         */
         return root
     }
     

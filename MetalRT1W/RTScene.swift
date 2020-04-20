@@ -11,6 +11,7 @@ import MetalKit
 
 fileprivate let kForwardVertKernel = "forward_vert"
 fileprivate let kRayTraceFragKernel = "ray_trace_frag"
+fileprivate let kMaterialTexturesBufferIndex = 4
 
 fileprivate func makeQuadVertexBuffers(lo: Float, hi: Float, _ device: MTLDevice) -> MTLBuffer {
     // xy: position coord
@@ -51,6 +52,36 @@ fileprivate func makeRenderPipelineState(_ device: MTLDevice) -> MTLRenderPipeli
     return try! device.makeRenderPipelineState(descriptor: pipelineStateDesc)
 }
 
+fileprivate func loadTexture(jpeg: String, _ device: MTLDevice) -> MTLTexture {
+    let texLoader = MTKTextureLoader(device: device)
+    let url = Bundle.main.url(forResource: jpeg , withExtension: "jpg")!
+    let tex = try! texLoader.newTexture(URL: url, options: [.SRGB: true, .generateMipmaps: false])
+//    print("url=\(url) | tex width=\(tex.width) height=\(tex.height)")
+    return tex
+}
+
+fileprivate func loadMaterialTextures(_ device: MTLDevice) -> [MTLTexture] {
+    var texs = [MTLTexture]()
+    for f in ["earth", "moon"] {
+        texs.append(loadTexture(jpeg: f, device))
+    }
+    return texs
+}
+
+fileprivate func makeMaterialTexturesArgBuffer(_ device: MTLDevice, _ texs: [MTLTexture]) -> MTLBuffer {
+    let defaultLib = device.makeDefaultLibrary()!
+    let fragFunc = defaultLib.makeFunction(name: kRayTraceFragKernel)!
+    let argEncoder = fragFunc.makeArgumentEncoder(bufferIndex: kMaterialTexturesBufferIndex)
+    let argBufferLength = argEncoder.encodedLength
+    print("matTexsArgBufferLen=\(argBufferLength)")
+    let argBuffer = device.makeBuffer(length: argBufferLength, options: [])!
+    argEncoder.setArgumentBuffer(argBuffer, offset: 0)
+    for (i, t) in texs.enumerated() {
+        argEncoder.setTexture(t, index: i)
+    }
+    return argBuffer
+}
+
 struct RayTracingParams {
     var screenSize: simd_float2 = .zero
     var sampleBatchSize: Int32 = .zero
@@ -82,6 +113,9 @@ class RTScene {
     private let renderPipelineState: MTLRenderPipelineState
     private var colorTexture: MTLTexture!
     
+    private let matTexs: [MTLTexture]
+    private let matTexsArgBuffer: MTLBuffer
+    
     init(_ cfg: Config, _ device: MTLDevice) {
         self.device = device
         self.cfg = cfg
@@ -102,6 +136,9 @@ class RTScene {
         // Metal NDC XY: [-1.0, 1.0], Z: [0.0, 1.0]
         renderQuadVertexBuffer = makeQuadVertexBuffers(lo: -1.0, hi: 1.0, device)
         renderPipelineState = makeRenderPipelineState(device)
+        
+        matTexs = loadMaterialTextures(device)
+        matTexsArgBuffer = makeMaterialTexturesArgBuffer(device, matTexs)
     }
 
     func render(_ drawable: CAMetalDrawable, _ commandBuffer: MTLCommandBuffer) -> Bool {
@@ -174,7 +211,11 @@ class RTScene {
         commandEncoder.setFragmentBuffer(rtParamsBuffer, offset: 0, index: 1)
         commandEncoder.setFragmentBuffer(cameraParamsBuffer, offset: 0, index: 2)
         commandEncoder.setFragmentBuffer(randSeedBuffer, offset: 0, index: 3)
+        
+        commandEncoder.useResources(matTexs, usage: .sample)
+        commandEncoder.setFragmentBuffer(matTexsArgBuffer, offset: 0, index: kMaterialTexturesBufferIndex)
         commandEncoder.setFragmentTexture(colorTexture, index: 0)
+//        commandEncoder.setFragmentTexture(matTexs[0], index: 1)
         commandEncoder.setTriangleFillMode(.fill)
         // A quad contains two triangle, therefore a total of 6 vertices
         commandEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)

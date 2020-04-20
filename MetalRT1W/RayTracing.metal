@@ -171,8 +171,20 @@ struct HitRecord {
     float3 point;
     float3 normal;
     ElemPtr material_ptr;
+    float2 tex_uv;
 };
 
+/// Textures
+
+struct MaterialTextures {
+    texture2d<float> texs[2];
+};
+
+using TexturesPtr = device const MaterialTextures*;
+//using TexturesPtr = texture2d<float>;
+constant constexpr sampler kSampler(mag_filter::linear,
+                                    min_filter::linear,
+                                    address::clamp_to_zero);
 /// Material
 
 enum class MaterialKinds {
@@ -200,8 +212,16 @@ public:
         return read<float3>(ptr_);
     }
     
-    bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
-        *attenuation = albedo();
+    bool scatter(thread const Ray& r_in, thread const HitRecord& rec,
+                 TexturesPtr mat_texs, thread RandState* rand_state,
+                 thread float3* attenuation, thread Ray* r_scattered) const {
+        const int tex_idx = read<int>(ptr_ + sizeof(float3));
+        if (tex_idx >= 0) {
+//            *attenuation = mat_texs->texs[tex_idx].sample(kSampler, rec.tex_uv).xyz;
+            *attenuation = mat_texs->texs[tex_idx].sample(kSampler, rec.tex_uv).xyz;
+        } else {
+            *attenuation = albedo();
+        }
         const float3 new_dir = rec.normal + random_in_unit_sphere(rand_state);
         *r_scattered = Ray(get_scattered_ray_origin(rec.point, rec.normal), new_dir);
         return true;
@@ -223,12 +243,24 @@ public:
         return read<float>(ptr_ + sizeof(float3));
     }
     
-    bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
+    inline int tex_index() const {
+        // offset = albedo + fuzz
+        return read<int>(ptr_ + sizeof(float3) + sizeof(float));
+    }
+    
+    bool scatter(thread const Ray& r_in, thread const HitRecord& rec,
+                 TexturesPtr mat_texs, thread RandState* rand_state,
+                 thread float3* attenuation, thread Ray* r_scattered) const {
         const float3 reflected = reflect(r_in.direction(), rec.normal);
         if (dot(reflected, rec.normal) <= 0) {
             return false;
         }
-        *attenuation = albedo();
+        const int tex_idx = tex_index();
+        if (tex_idx >= 0) {
+            *attenuation = mat_texs->texs[tex_idx].sample(kSampler, rec.tex_uv).xyz;
+        } else {
+            *attenuation = albedo();
+        }
         *r_scattered = Ray(get_scattered_ray_origin(rec.point, rec.normal), reflected + fuzz() * random_in_unit_sphere(rand_state));
         return true;
     }
@@ -253,6 +285,11 @@ public:
     inline float fuzz() const {
         // offset = refract_index
         return read<float>(ptr_ + sizeof(float));
+    }
+    
+    inline float tex_index() const {
+        // offset = refract_index + fuzz
+        return read<float>(ptr_ + sizeof(float) + sizeof(float));
     }
     
     bool scatter(thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) const {
@@ -296,21 +333,28 @@ public:
     inline float3 color() const {
         return read<float3>(ptr_);
     }
+    
+    inline int tex_index() const {
+        // offset = color
+        return read<int>(ptr_ + sizeof(float3));
+    }
 private:
     ElemPtr ptr_;
 };
 
-bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, thread RandState* rand_state, thread float3* attenuation, thread Ray* r_scattered) {
+bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec,
+             TexturesPtr mat_texs, thread RandState* rand_state,
+             thread float3* attenuation, thread Ray* r_scattered) {
     int32_t bytes_unused;
     elem = read_elem_bytes_and_skip(elem, &bytes_unused);
     
     const auto kind = read_material_kind(elem);
     if (kind == MaterialKinds::lambertian) {
         Lambertian l(elem);
-        return l.scatter(r_in, rec, rand_state, attenuation, r_scattered);
+        return l.scatter(r_in, rec, mat_texs, rand_state, attenuation, r_scattered);
     } else if (kind == MaterialKinds::mmetal) {
         MMetal m(elem);
-        return m.scatter(r_in, rec, rand_state, attenuation, r_scattered);
+        return m.scatter(r_in, rec, mat_texs, rand_state, attenuation, r_scattered);
     } else if (kind == MaterialKinds::dielectrics) {
         Dielectrics d(elem);
         return d.scatter(r_in, rec, rand_state, attenuation, r_scattered);
@@ -318,15 +362,21 @@ bool scatter(ElemPtr elem, thread const Ray& r_in, thread const HitRecord& rec, 
     return false;
 }
 
-bool emitted(ElemPtr elem, thread float3* color) {
+bool emitted(thread const HitRecord& rec, TexturesPtr mat_texs, thread float3* color) {
     // TODO: support u, v in HitRecord
     int32_t bytes_unused;
-    elem = read_elem_bytes_and_skip(elem, &bytes_unused);
+    ElemPtr mat_ptr = read_elem_bytes_and_skip(rec.material_ptr, &bytes_unused);
     
-    const auto kind = read_material_kind(elem);
+    const auto kind = read_material_kind(mat_ptr);
     if (kind == MaterialKinds::light_source) {
-        LightSource l(elem);
-        *color = l.color();
+        LightSource l(mat_ptr);
+        float3 c(1.0);
+        auto tex_idx = l.tex_index();
+        if (tex_idx >= 0) {
+            c = mat_texs->texs[tex_idx].sample(kSampler, rec.tex_uv).xxx;
+        }
+        c *= l.color();
+        *color = c;
         return true;
     }
     return false;
@@ -339,6 +389,16 @@ struct RecursionRecord {
     int32_t nxt;
     int32_t end;
 };
+
+float2 get_sphere_tex_uv(float3 dir) {
+    const float phi = atan2(dir.z, dir.x);
+    const float theta = asin(-dir.y);
+    float2 uv;
+    uv.x = M_PI_F - (phi + M_PI_F) * 0.5;
+    uv.y = (theta + M_PI_2_F);
+    uv *= M_1_PI_F;
+    return uv;
+}
 
 bool hit(Sphere sphere, thread const Ray& r, float t_min, float t_max, thread HitRecord* rec) {
     const float3 center = sphere.center();
@@ -365,6 +425,7 @@ bool hit(Sphere sphere, thread const Ray& r, float t_min, float t_max, thread Hi
     rec->point = r.point_at(rec->t);
     rec->normal = normalize(rec->point - center);
     rec->material_ptr = sphere.material_ptr();
+    rec->tex_uv = get_sphere_tex_uv(normalize(rec->point - center));
     return true;
 }
 
@@ -488,7 +549,8 @@ struct RayTracingParams {
 
 constant constexpr float kTMax = 1e6;
 
-float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth, thread RandState* rand_state) {
+float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth,
+                 TexturesPtr mat_texs, thread RandState* rand_state) {
     int32_t bytes_unused;
     elem = read_elem_bytes_and_skip(elem, &bytes_unused);
     
@@ -499,14 +561,16 @@ float3 ray_trace(Ray ray, ElemPtr elem, int32_t max_depth, thread RandState* ran
         if (hit(elem, ray, 0.0, kTMax, &rec)) {
             float3 attenuation;
             Ray ray_new;
-            const bool scattered = scatter(rec.material_ptr, ray, rec, rand_state, &attenuation, &ray_new);
+            const bool scattered = scatter(rec.material_ptr, ray, rec,
+                                           mat_texs, rand_state,
+                                           &attenuation, &ray_new);
             if ((depth < max_depth) && scattered) {
                 ++depth;
                 color *= attenuation;
                 ray = ray_new;
             } else {
                 float3 emission(0.0);
-                emitted(rec.material_ptr, &emission);
+                emitted(rec, mat_texs, &emission);
                 color *= emission;
                 break;
             }
@@ -538,7 +602,9 @@ fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
                                device RayTracingParams* rt_params [[buffer(1)]],
                                device CameraParams* cam_params [[buffer(2)]],
                                device const uint32_t* rand_seed [[buffer(3)]],
+                               TexturesPtr mat_texs [[buffer(4)]],
                                texture2d<float> color_tex [[texture(0)]],
+//                               TexturesPtr mat_texs [[texture(1)]],
                                ForwardPosTexVertexOut frag_data [[ stage_in ]]) {
     const float2 tex_coord = frag_data.tex_coord;
     const float tx = tex_coord.x;
@@ -558,7 +624,7 @@ fragment float4 ray_trace_frag(ElemPtr geometry [[buffer(0)]],
 #else
         Ray r = camera.get_ray(tx, ty, &rand_state);
 #endif
-        color += ray_trace(r, geometry, rt_params->max_depth, &rand_state);
+        color += ray_trace(r, geometry, rt_params->max_depth, mat_texs, &rand_state);
     }
     color = sqrt(color / sample_batch_size);
     
